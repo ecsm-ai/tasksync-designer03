@@ -318,7 +318,7 @@
 <p><b>クライアント:</b> ${task.client}<br/><b>案件:</b> ${task.project}<br/><b>タスク:</b> ${task.title}<br/><b>期間:</b> ${task.start} 〜 ${task.end}</p>
 <table><thead><tr><th>内容</th><th class="r">数量</th><th class="r">単価</th><th class="r">金額</th></tr></thead><tbody><tr><td>${task.title}</td><td class="r">1</td><td class="r">¥50,000</td><td class="r">¥50,000</td></tr></tbody><tfoot><tr><th colspan="3" class="r">小計</th><th class="r">¥50,000</th></tr></tfoot></table>
 <p>※ デモ用。実運用では単価・税率・振込先など編集可能にします。</p>
-<script>window.onload=()=>window.print()</script></body></html>`;
+<script>window.onload=()=>window.print()<\/script></body></html>`;
         w.document.write(html); w.document.close();
       }
 
