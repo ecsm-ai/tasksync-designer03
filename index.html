@@ -3,309 +3,337 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TaskSync Designer – Improved</title>
+    <title>TaskSync Designer – Vanilla JS</title>
     <meta name="color-scheme" content="light dark" />
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      /* ensure dynamic grid works for any day count */
-      .g-col { min-width: 80px; }
+      :root{--bg:#f8fafc;--fg:#0f172a;--card:#ffffff;--border:#e2e8f0;--muted:#64748b;--rail:#eef2f7;--primary:#4f46e5;--primary-2:#4338ca;--danger:#ef4444;--danger-2:#dc2626}
+      .dark{--bg:#0b0f14;--fg:#e5e7eb;--card:#0f172a;--border:#1f2937;--muted:#94a3b8;--rail:#1f2937}
+      html,body{height:100%}
+      body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+      .container{max-width:1120px;margin:0 auto;padding:0 16px}
+      .row{display:flex;gap:12px}
+      .btn{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--fg);cursor:pointer}
+      .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+      .btn.primary:hover{background:var(--primary-2)}
+      .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+      .btn.danger:hover{background:var(--danger-2)}
+      header{position:sticky;top:0;z-index:10;background:color-mix(in srgb, var(--card) 90%, transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--border)}
+      header .bar{display:flex;align-items:center;gap:8px;padding:12px 0}
+      select,input[type="text"],input[type="date"],input[type="number"],textarea{background:transparent;border:1px solid var(--border);color:var(--fg);border-radius:8px;padding:6px 8px}
+      .grid{display:grid;gap:12px}
+      .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px}
+      .cols{grid-template-columns:1fr}
+      @media(min-width:900px){.cols{grid-template-columns: 220px 1fr 320px}}
+      .gantt-header{display:grid;gap:4px;font-size:12px;opacity:.9}
+      .rail{height:28px;background:var(--rail);border-radius:6px}
+      .rowcard{border:1px solid var(--border);border-radius:10px;padding:8px}
+      .badge{font-size:10px;padding:2px 6px;border-radius:6px;border:1px solid #fecaca;background:#fee2e2;color:#b91c1c}
+      .bar{position:absolute;height:24px;border-radius:6px;box-shadow:0 1px 2px rgb(0 0 0 / .2);display:flex;align-items:center;color:#fff;font-size:11px;padding:0 8px;cursor:pointer}
+      .bar.primary{background:var(--primary)}
+      .bar.primary.sel{background:var(--primary-2)}
+      .bar.danger{background:var(--danger)}
+      .muted{color:var(--muted)}
+      .empty{opacity:.7;padding:12px}
+      .hidden{display:none}
+      .flex{display:flex;gap:8px;align-items:center}
+      .space{height:8px}
     </style>
   </head>
-  <body class="bg-gray-50 text-gray-900 dark:bg-neutral-900 dark:text-neutral-100">
-    <div id="root"></div>
+  <body>
+    <header>
+      <div class="container bar">
+        <div style="font-weight:700">TaskSync Designer</div>
+        <div class="flex">
+          <button class="btn" data-preset="all">すべて</button>
+          <button class="btn" data-preset="today">今日</button>
+          <button class="btn" data-preset="week">今週</button>
+          <button class="btn" data-preset="overdue">期限切れ</button>
+        </div>
+        <div class="flex" style="margin-left:12px">
+          <input id="qa-title" type="text" placeholder="タスク名" style="width:160px" />
+          <input id="qa-client" type="text" placeholder="クライアント" style="width:120px" />
+          <select id="qa-days">
+            <option value="1">1日</option><option value="3" selected>3日</option><option value="5">5日</option><option value="10">10日</option>
+          </select>
+          <button id="qa-add" class="btn primary">追加</button>
+        </div>
+        <div style="margin-left:auto" class="flex">
+          <button id="theme" class="btn" title="テーマ切替">🌙/☀️</button>
+          <button id="prep" class="btn">明日の準備</button>
+        </div>
+      </div>
+    </header>
 
-    <!-- React UMD + Babel (no build step) -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <div class="container" style="padding:16px 0">
+      <div class="grid cols">
+        <!-- Sidebar -->
+        <aside class="card">
+          <div class="muted" style="font-weight:600;margin-bottom:6px">クライアント</div>
+          <select id="clientFilter" style="width:100%"><option value="all">すべて</option></select>
+          <div class="space"></div>
+          <div class="muted" style="font-weight:600;margin-bottom:6px">ビュー</div>
+          <div class="row">
+            <button class="btn" data-view="week">週</button>
+            <button class="btn" data-view="month">月</button>
+          </div>
+        </aside>
 
-    <script type="text/babel">
-      const {useState, useMemo, useEffect} = React;
+        <!-- Gantt -->
+        <main class="card">
+          <div id="ganttHeader" class="gantt-header"></div>
+          <div id="ganttBody" class="grid" style="margin-top:8px"></div>
+        </main>
 
+        <!-- Detail -->
+        <section class="card">
+          <div class="muted" style="margin-bottom:6px">タスク詳細</div>
+          <div id="detailEmpty" class="empty">左のバーを選択すると詳細が表示されます。</div>
+          <div id="detail" class="hidden">
+            <div style="font-size:18px;font-weight:700" id="d-title"></div>
+            <div class="muted" id="d-sub"></div>
+            <div class="space"></div>
+
+            <div class="muted">期間</div>
+            <div id="d-range"></div>
+            <div class="row" style="margin-top:6px">
+              <button id="d-shift-1" class="btn">◀ 1日前</button>
+              <button id="d-shift+1" class="btn">1日後 ▶</button>
+            </div>
+            <div class="space"></div>
+
+            <div class="muted">進捗</div>
+            <div class="row">
+              <input id="d-progress" type="range" min="0" max="100" style="flex:1" />
+              <span id="d-progress-val" style="width:42px"></span>
+            </div>
+            <div class="space"></div>
+
+            <div class="muted">優先度</div>
+            <select id="d-priority"><option>High</option><option selected>Medium</option><option>Low</option></select>
+            <div class="space"></div>
+
+            <div class="muted">ステータス</div>
+            <select id="d-status"><option>Planned</option><option>In Progress</option><option>Blocked</option><option>Done</option></select>
+            <div class="space"></div>
+
+            <div class="muted">依頼メモ</div>
+            <ul id="d-messages" style="padding-left:18px;margin:6px 0"></ul>
+            <div class="row">
+              <input id="d-msg-input" type="text" placeholder="例：修正点／依頼事項" style="flex:1" />
+              <button id="d-msg-add" class="btn primary">追加</button>
+            </div>
+            <div class="space"></div>
+
+            <div class="row">
+              <button id="d-remind" class="btn primary">リマインダー</button>
+              <button id="d-invoice" class="btn">請求書を作成</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script>
       // ===== Utilities =====
       const fmt = (d)=>d.toISOString().slice(0,10);
-      const parse = (s)=>new Date(s + "T00:00:00");
+      const parse = (s)=>new Date(s+"T00:00:00");
       const addDays = (d,n)=>new Date(d.getFullYear(), d.getMonth(), d.getDate()+n);
-      const diffDays = (a,b)=>Math.floor((a.getTime()-b.getTime())/86400000);
-      const startOfWeek = (d)=>addDays(d, -((d.getDay()+6)%7)); // Mon
+      const diffDays = (a,b)=>Math.floor((a-b)/86400000);
+      const startOfWeek = (d)=>addDays(d, -((d.getDay()+6)%7));
       const startOfMonth = (d)=>new Date(d.getFullYear(), d.getMonth(), 1);
       const daysInMonth = (d)=>new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
       const today = new Date();
 
-      // ===== Seed =====
-      const seed = [
-        {id:"t1", title:"LPデザイン（構成案）", client:"Acme Co.", project:"EC刷新", start:fmt(addDays(today,-2)), end:fmt(addDays(today,3)), progress:60, priority:"High", status:"In Progress", notes:"ワイヤー確定後にビジュアル着手", messages:["構成案はA/Bで検討","CTA案は金曜"]},
-        {id:"t2", title:"バナー3種", client:"Beta Studio", project:"A/Wキャンペーン", start:fmt(addDays(today,-1)), end:fmt(addDays(today,8)), progress:20, priority:"Medium", status:"Planned", notes:"文言支給待ち", messages:["サイズ:300x250/728x90/1080x1350"]},
-        {id:"t3", title:"ロゴ微調整", client:"Acme Co.", project:"ブランドガイド", start:fmt(addDays(today,1)), end:fmt(addDays(today,4)), progress:0, priority:"Low", status:"Planned", notes:"配色3案", messages:[]},
-      ];
+      // ===== State =====
+      const storeKey = 'tsd_vjs_tasks';
+      const themeKey = 'tsd_vjs_theme';
+      let tasks = [];
+      let view = 'week'; // week | month
+      let preset = 'all'; // all | today | week | overdue
+      let selectedId = null;
+      let filterClient = 'all';
 
-      // ===== App =====
-      function App(){
-        const [tasks, setTasks] = useState(()=>{
-          const s = localStorage.getItem("tsd_tasks_v2");
-          return s ? JSON.parse(s) : seed;
+      const seed = (()=>{
+        const t = new Date();
+        return [
+          {id:'t1', title:'LPデザイン（構成案）', client:'Acme Co.', project:'EC刷新', start:fmt(addDays(t,-2)), end:fmt(addDays(t,3)), progress:60, priority:'High', status:'In Progress', notes:'ワイヤー確定後にビジュアル着手', messages:['構成案はA/Bで検討','CTA案は金曜']},
+          {id:'t2', title:'バナー3種', client:'Beta Studio', project:'A/Wキャンペーン', start:fmt(addDays(t,-1)), end:fmt(addDays(t,8)), progress:20, priority:'Medium', status:'Planned', notes:'文言支給待ち', messages:['サイズ:300x250/728x90/1080x1350']},
+          {id:'t3', title:'ロゴ微調整', client:'Acme Co.', project:'ブランドガイド', start:fmt(addDays(t,1)), end:fmt(addDays(t,4)), progress:0, priority:'Low', status:'Planned', notes:'配色3案', messages:[]},
+        ];
+      })();
+
+      function load(){
+        try{ tasks = JSON.parse(localStorage.getItem(storeKey)||'[]'); }catch{ tasks=[] }
+        if(!Array.isArray(tasks) || tasks.length===0) tasks = seed;
+        const savedTheme = localStorage.getItem(themeKey);
+        if(savedTheme==='dark') document.documentElement.classList.add('dark');
+      }
+      function save(){ localStorage.setItem(storeKey, JSON.stringify(tasks)); }
+
+      // ===== Rendering =====
+      function render(){
+        // Sidebar filters
+        const clients = Array.from(new Set(tasks.map(t=>t.client)));
+        const cf = document.getElementById('clientFilter');
+        cf.innerHTML = '<option value="all">すべて</option>' + clients.map(c=>`<option value="${c}">${c}</option>`).join('');
+        cf.value = filterClient;
+
+        // Header presets (visual only handled by selected state? Keep buttons as-is)
+
+        // Header range
+        const rangeStart = view==='week' ? startOfWeek(today) : startOfMonth(today);
+        const totalDays = view==='week' ? 7 : daysInMonth(today);
+
+        // Gantt header days
+        const gh = document.getElementById('ganttHeader');
+        gh.style.gridTemplateColumns = `repeat(${totalDays}, minmax(80px, 1fr))`;
+        gh.innerHTML = '';
+        for(let i=0;i<totalDays;i++){
+          const d = addDays(rangeStart, i);
+          const div = document.createElement('div');
+          div.textContent = `${d.getMonth()+1}/${d.getDate()} ${'日月火水木金土'[d.getDay()]}`;
+          gh.appendChild(div);
+        }
+
+        // Filtering tasks
+        const weekStart = startOfWeek(today); const weekEnd = addDays(weekStart,6);
+        const filtered = tasks
+          .filter(t=>filterClient==='all' ? true : t.client===filterClient)
+          .filter(t=>{
+            const s = parse(t.start), e = parse(t.end);
+            if(preset==='today') return s <= today && e >= today;
+            if(preset==='week') return e >= weekStart && s <= weekEnd;
+            if(preset==='overdue') return e < parse(fmt(today)) && t.status !== 'Done';
+            return true;
+          });
+
+        const body = document.getElementById('ganttBody');
+        body.innerHTML = '';
+
+        if(filtered.length===0){
+          const empty = document.createElement('div'); empty.className='empty'; empty.textContent='該当タスクがありません'; body.appendChild(empty);
+        }
+
+        filtered.forEach(t=>{
+          const wrap = document.createElement('div'); wrap.className='rowcard';
+          const head = document.createElement('div'); head.className='row'; head.style.justifyContent='space-between'; head.style.alignItems='center'; head.style.fontSize='14px';
+          const left = document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='6px'; left.style.fontWeight='600';
+          const overdue = parse(t.end) < parse(fmt(today)) && t.status !== 'Done';
+          if(overdue){ const b=document.createElement('span'); b.className='badge'; b.textContent='期限切れ'; left.appendChild(b); }
+          left.appendChild(document.createTextNode(t.title));
+          const right = document.createElement('div'); right.className='muted'; right.textContent = `${t.client} ・ ${t.project}`;
+          head.appendChild(left); head.appendChild(right);
+
+          const rail = document.createElement('div'); rail.style.position='relative'; rail.style.marginTop='8px'; rail.style.display='grid'; rail.style.gap='4px'; rail.style.gridTemplateColumns = `repeat(${totalDays}, minmax(80px, 1fr))`;
+          for(let i=0;i<totalDays;i++){ const r = document.createElement('div'); r.className='rail'; rail.appendChild(r); }
+
+          const first = rangeStart; const last = addDays(rangeStart, totalDays-1);
+          const s = parse(t.start) < first ? first : parse(t.start);
+          const e = parse(t.end) > last ? last : parse(t.end);
+          const colStart = Math.max(0, diffDays(s, first));
+          const colSpan = Math.max(1, diffDays(e, first) - diffDays(s, first) + 1);
+
+          const bar = document.createElement('div');
+          bar.className = 'bar ' + (overdue ? 'danger' : 'primary');
+          if(selectedId===t.id && !overdue) bar.classList.add('sel');
+          bar.style.left = `calc(${colStart}*(100%/${totalDays}) + ${colStart*4}px)`;
+          bar.style.width = `calc(${colSpan}*(100%/${totalDays}) + ${(colSpan-1)*4}px)`;
+          bar.style.top = '2px';
+          bar.title = `${t.title} (${t.start} → ${t.end})`;
+          bar.textContent = `${t.progress}%`;
+          bar.onclick = ()=>{ selectedId = t.id; renderDetail(); render(); };
+
+          rail.appendChild(bar);
+          wrap.appendChild(head); wrap.appendChild(rail);
+          body.appendChild(wrap);
         });
-        const [view, setView] = useState("week"); // week | month
-        const [selectedId, setSelectedId] = useState(tasks[0]?.id || null);
-        const [filterClient, setFilterClient] = useState("all");
-        const [preset, setPreset] = useState("all"); // all | today | week | overdue
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const [dark, setDark] = useState(()=> (localStorage.getItem("tsd_dark") ?? (prefersDark? "1":"0")) === "1");
 
-        useEffect(()=>localStorage.setItem("tsd_tasks_v2", JSON.stringify(tasks)),[tasks]);
-        useEffect(()=>{
-          document.documentElement.classList.toggle("dark", dark);
-          localStorage.setItem("tsd_dark", dark ? "1":"0");
-        },[dark]);
+        renderDetail();
+      }
 
-        const rangeStart = view==="week" ? startOfWeek(today) : startOfMonth(today);
-        const totalDays = view==="week" ? 7 : daysInMonth(today);
-        const headerDays = useMemo(()=>Array.from({length: totalDays}, (_,i)=>addDays(rangeStart,i)),[view]);
+      function renderDetail(){
+        const dEmpty = document.getElementById('detailEmpty');
+        const d = document.getElementById('detail');
+        const t = tasks.find(x=>x.id===selectedId) || null;
+        if(!t){ dEmpty.classList.remove('hidden'); d.classList.add('hidden'); return; }
+        dEmpty.classList.add('hidden'); d.classList.remove('hidden');
+        document.getElementById('d-title').textContent = t.title;
+        document.getElementById('d-sub').textContent = `${t.client} ・ ${t.project}`;
+        document.getElementById('d-range').textContent = `${t.start} → ${t.end}`;
+        const prog = document.getElementById('d-progress'); prog.value = t.progress; document.getElementById('d-progress-val').textContent = t.progress + '%';
+        const pr = document.getElementById('d-priority'); pr.value = t.priority;
+        const st = document.getElementById('d-status'); st.value = t.status;
 
-        const clients = useMemo(()=>Array.from(new Set(tasks.map(t=>t.client))),[tasks]);
+        // messages
+        const ul = document.getElementById('d-messages'); ul.innerHTML='';
+        (t.messages||[]).forEach(m=>{ const li=document.createElement('li'); li.textContent = '• '+m; li.style.fontSize='13px'; ul.appendChild(li); });
+        if((t.messages||[]).length===0){ const li=document.createElement('li'); li.textContent='メモなし'; li.className='muted'; ul.appendChild(li); }
 
-        const filtered = useMemo(()=>{
-          const d0 = startOfWeek(today);
-          const d6 = addDays(d0, 6);
-          return tasks
-            .filter(t => filterClient==="all" ? true : t.client===filterClient)
-            .filter(t => {
-              const s = parse(t.start), e = parse(t.end);
-              if (preset==="today") return s <= today && e >= today;
-              if (preset==="week")  return e >= d0 && s <= d6;
-              if (preset==="overdue") return e < parse(fmt(today)) && t.status !== "Done";
-              return true;
-            });
-        }, [tasks, filterClient, preset, view]);
+        // actions
+        document.getElementById('d-shift-1').onclick = ()=>{ shiftTask(t.id,-1); };
+        document.getElementById('d-shift+1').onclick = ()=>{ shiftTask(t.id, 1); };
+        prog.oninput = (e)=>{ updateTask(t.id,{progress:Number(e.target.value)}); document.getElementById('d-progress-val').textContent = e.target.value + '%'; };
+        pr.onchange = (e)=> updateTask(t.id,{priority:e.target.value});
+        st.onchange = (e)=> updateTask(t.id,{status:e.target.value});
+        document.getElementById('d-msg-add').onclick = ()=>{
+          const input = document.getElementById('d-msg-input'); const txt = input.value.trim(); if(!txt) return;
+          const msgs = [...(t.messages||[]), txt]; updateTask(t.id,{messages:msgs}); input.value='';
+        };
+        document.getElementById('d-remind').onclick = ()=> alert('リマインダー（デモ）を設定しました');
+        document.getElementById('d-invoice').onclick = ()=> createInvoice(t);
+      }
 
-        const selected = tasks.find(t=>t.id===selectedId) || null;
-
-        function createTask(nt){
-          setTasks(prev=>[{...nt, id:"t"+(prev.length+1)}, ...prev]);
-        }
-        function updateTask(id, patch){
-          setTasks(prev=>prev.map(t=>t.id===id ? {...t, ...patch}: t));
-        }
-        function shiftTask(id, dir){
-          const t = tasks.find(x=>x.id===id); if(!t) return;
-          updateTask(id, { start: fmt(addDays(parse(t.start), dir)), end: fmt(addDays(parse(t.end), dir)) });
-        }
-        function addMsg(id, text){
-          const t = tasks.find(x=>x.id===id); if(!t||!text.trim()) return;
-          updateTask(id, { messages: [...(t.messages||[]), text.trim()] });
-        }
-        function prepareTomorrow(){
-          // move not-done tasks ending today or earlier by +1 day
-          const todayStr = fmt(today);
-          setTasks(prev=>prev.map(t=>{
-            if (t.status==="Done") return t;
-            if (t.end <= todayStr) {
-              return {...t, start: fmt(addDays(parse(t.start),1)), end: fmt(addDays(parse(t.end),1)), status: t.status==="Blocked"?"In Progress":t.status};
-            }
-            return t;
-          }));
-          alert("未完了タスクを明日に繰り越しました。");
-        }
-        function createInvoice(task){
-          if(!task) return;
-          const w = window.open("", "_blank");
-          if(!w) return;
-          const html = `<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"/><title>Invoice - ${task.title}</title>
-<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;padding:24px} h1{margin:0 0 8px} table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:8px} .r{text-align:right}</style>
-</head><body>
+      // ===== Mutations =====
+      function updateTask(id, patch){ tasks = tasks.map(x=> x.id===id ? {...x, ...patch} : x); save(); render(); }
+      function shiftTask(id, dir){ const t = tasks.find(x=>x.id===id); if(!t) return; updateTask(id, { start: fmt(addDays(parse(t.start),dir)), end: fmt(addDays(parse(t.end),dir)) }); }
+      function addQuick(){
+        const title = document.getElementById('qa-title').value.trim();
+        const client = document.getElementById('qa-client').value.trim();
+        const days = Number(document.getElementById('qa-days').value||'3');
+        if(!title || !client) return;
+        const s = fmt(new Date()); const e = fmt(addDays(new Date(), days));
+        const nt = {id:'t'+(tasks.length+1), title, client, project:'単発', start:s, end:e, progress:0, priority:'Medium', status:'Planned', notes:'', messages:[]};
+        tasks = [nt, ...tasks]; save();
+        document.getElementById('qa-title').value=''; document.getElementById('qa-client').value='';
+        render();
+      }
+      function setPreset(p){ preset = p; render(); }
+      function setView(v){ view = v; render(); }
+      function setFilterClient(v){ filterClient = v; render(); }
+      function toggleTheme(){ document.documentElement.classList.toggle('dark'); const isDark = document.documentElement.classList.contains('dark'); localStorage.setItem(themeKey, isDark? 'dark':'light'); }
+      function prepareTomorrow(){
+        const todayStr = fmt(new Date());
+        tasks = tasks.map(t=>{
+          if(t.status==='Done') return t;
+          if(t.end <= todayStr){ return {...t, start: fmt(addDays(parse(t.start),1)), end: fmt(addDays(parse(t.end),1)), status: t.status==='Blocked' ? 'In Progress' : t.status}; }
+          return t;
+        });
+        save(); render(); alert('未完了タスクを明日に繰り越しました。');
+      }
+      function createInvoice(task){
+        const w = window.open('', '_blank'); if(!w) return;
+        const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8"/><title>Invoice - ${task.title}</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;padding:24px} h1{margin:0 0 8px} table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:8px} .r{text-align:right}</style></head><body>
 <h1>請求書</h1>
-<p><b>クライアント:</b> ${task.client}<br/>
-<b>案件:</b> ${task.project}<br/>
-<b>タスク:</b> ${task.title}<br/>
-<b>期間:</b> ${task.start} 〜 ${task.end}</p>
-<table><thead><tr><th>内容</th><th class="r">数量</th><th class="r">単価</th><th class="r">金額</th></tr></thead>
-<tbody><tr><td>${task.title}</td><td class="r">1</td><td class="r">¥50,000</td><td class="r">¥50,000</td></tr></tbody>
-<tfoot><tr><th colspan="3" class="r">小計</th><th class="r">¥50,000</th></tr></tfoot>
-</table>
+<p><b>クライアント:</b> ${task.client}<br/><b>案件:</b> ${task.project}<br/><b>タスク:</b> ${task.title}<br/><b>期間:</b> ${task.start} 〜 ${task.end}</p>
+<table><thead><tr><th>内容</th><th class="r">数量</th><th class="r">単価</th><th class="r">金額</th></tr></thead><tbody><tr><td>${task.title}</td><td class="r">1</td><td class="r">¥50,000</td><td class="r">¥50,000</td></tr></tbody><tfoot><tr><th colspan="3" class="r">小計</th><th class="r">¥50,000</th></tr></tfoot></table>
 <p>※ デモ用。実運用では単価・税率・振込先など編集可能にします。</p>
-<script>window.onload=()=>window.print()</script>
-</body></html>`;
-          w.document.write(html); w.document.close();
-        }
-
-        return (
-          <div className="min-h-screen">
-            {/* Header */}
-            <div className="sticky top-0 z-10 border-b bg-white/80 backdrop-blur dark:bg-neutral-900/80">
-              <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-2">
-                <div className="font-bold text-lg">TaskSync Designer</div>
-                <div className="hidden md:flex gap-1">
-                  <Preset label="すべて" active={preset==="all"} onClick={()=>setPreset("all")} />
-                  <Preset label="今日" active={preset==="today"} onClick={()=>setPreset("today")} />
-                  <Preset label="今週" active={preset==="week"} onClick={()=>setPreset("week")} />
-                  <Preset label="期限切れ" active={preset==="overdue"} onClick={()=>setPreset("overdue")} />
-                </div>
-                <QuickAdd onCreate={createTask} />
-                <div className="ml-auto flex gap-2">
-                  <button className="px-2 py-1 rounded border" onClick={()=>setDark(!dark)}>{dark ? "☀️" : "🌙"}</button>
-                  <button className="px-3 py-1 rounded border" onClick={prepareTomorrow}>明日の準備</button>
-                </div>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div className="mx-auto max-w-7xl px-4 py-4 grid grid-cols-12 gap-4">
-              {/* Sidebar */}
-              <aside className="col-span-12 md:col-span-3 lg:col-span-2 bg-white dark:bg-neutral-800 border dark:border-neutral-700 rounded-xl p-3 h-fit">
-                <div className="text-sm font-semibold mb-1">クライアント</div>
-                <select className="w-full border rounded px-2 py-1 bg-white dark:bg-neutral-800" value={filterClient} onChange={e=>setFilterClient(e.target.value)}>
-                  <option value="all">すべて</option>
-                  {clients.map(c=><option key={c} value={c}>{c}</option>)}
-                </select>
-
-                <div className="mt-4 text-sm font-semibold mb-1">ビュー</div>
-                <div className="flex gap-2">
-                  <button className={"px-3 py-1 rounded border " + (view==="week"?"bg-indigo-600 text-white":"")} onClick={()=>setView("week")}>週</button>
-                  <button className={"px-3 py-1 rounded border " + (view==="month"?"bg-indigo-600 text-white":"")} onClick={()=>setView("month")}>月</button>
-                </div>
-              </aside>
-
-              {/* Gantt */}
-              <main className="col-span-12 md:col-span-6 lg:col-span-7 bg-white dark:bg-neutral-800 border dark:border-neutral-700 rounded-xl p-3">
-                <div className="grid gap-1 text-xs font-medium" style={{gridTemplateColumns:`repeat(${totalDays}, minmax(80px, 1fr))`}}>
-                  {headerDays.map((d,i)=>(
-                    <div key={i} className="text-center opacity-80">{d.getMonth()+1}/{d.getDate()} {"日月火水木金土"[d.getDay()]}</div>
-                  ))}
-                </div>
-                <div className="mt-2 space-y-3">
-                  {filtered.map(t => (
-                    <GanttRow key={t.id} task={t} rangeStart={rangeStart} totalDays={totalDays} selected={t.id===selectedId} onSelect={()=>setSelectedId(t.id)} />
-                  ))}
-                  {filtered.length===0 && <div className="text-sm opacity-70 p-4">該当タスクがありません</div>}
-                </div>
-              </main>
-
-              {/* Detail */}
-              <section className="col-span-12 md:col-span-3 lg:col-span-3 bg-white dark:bg-neutral-800 border dark:border-neutral-700 rounded-xl p-3 h-fit">
-                <DetailPanel task={selected} onUpdate={updateTask} onShift={shiftTask} onAddMsg={addMsg} onInvoice={createInvoice} />
-              </section>
-            </div>
-          </div>
-        );
+<script>window.onload=()=>window.print()</script></body></html>`;
+        w.document.write(html); w.document.close();
       }
 
-      function Preset({label, active, onClick}){
-        return <button onClick={onClick} className={"px-3 py-1 rounded border " + (active? "bg-indigo-600 text-white":"")}>{label}</button>;
+      // ===== Wire UI =====
+      function bind(){
+        document.getElementById('qa-add').onclick = addQuick;
+        document.querySelectorAll('[data-preset]').forEach(b=> b.onclick = ()=> setPreset(b.getAttribute('data-preset')) );
+        document.querySelectorAll('[data-view]').forEach(b=> b.onclick = ()=> setView(b.getAttribute('data-view')) );
+        document.getElementById('clientFilter').onchange = (e)=> setFilterClient(e.target.value);
+        document.getElementById('theme').onclick = toggleTheme;
+        document.getElementById('prep').onclick = prepareTomorrow;
       }
 
-      function QuickAdd({onCreate}){
-        const [title,setTitle]=useState("");
-        const [client,setClient]=useState("");
-        const [days,setDays]=useState(3);
-        return (
-          <div className="hidden md:flex items-center gap-2 ml-4">
-            <input className="border rounded px-2 py-1 text-sm" placeholder="タスク名" value={title} onChange={e=>setTitle(e.target.value)} />
-            <input className="border rounded px-2 py-1 text-sm" placeholder="クライアント" value={client} onChange={e=>setClient(e.target.value)} />
-            <select className="border rounded px-2 py-1 text-sm" value={days} onChange={e=>setDays(Number(e.target.value))}>
-              <option value={1}>1日</option><option value={3}>3日</option><option value={5}>5日</option><option value={10}>10日</option>
-            </select>
-            <button className="px-3 py-1 rounded bg-indigo-600 text-white text-sm" onClick={()=>{
-              if(!title || !client) return;
-              const s = fmt(new Date());
-              const e = fmt(addDays(new Date(), days));
-              onCreate({title, client, project:"単発", start:s, end:e, progress:0, priority:"Medium", status:"Planned", notes:"", messages:[]});
-              setTitle(""); setClient("");
-            }}>追加</button>
-          </div>
-        );
-      }
-
-      function GanttRow({task, rangeStart, totalDays, selected, onSelect}){
-        const start = parse(task.start), end = parse(task.end);
-        const first = rangeStart, last = addDays(rangeStart, totalDays-1);
-        const cs = start < first ? first : start;
-        const ce = end > last ? last : end;
-        const colStart = Math.max(0, diffDays(cs, first));
-        const colSpan = Math.max(1, diffDays(ce, first) - diffDays(cs, first) + 1);
-        const overdue = end < parse(fmt(new Date())) && task.status !== "Done";
-
-        return (
-          <div className="border dark:border-neutral-700 rounded-lg p-2">
-            <div className="flex items-center justify-between text-sm">
-              <div className="font-semibold flex gap-2 items-center">
-                {overdue && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-300">期限切れ</span>}
-                {task.title}
-              </div>
-              <div className="opacity-70">{task.client} ・ {task.project}</div>
-            </div>
-            <div className="relative mt-2" style={{display:"grid", gridTemplateColumns:`repeat(${totalDays}, minmax(80px, 1fr))`, gap:"4px"}}>
-              {Array.from({length:totalDays}).map((_,i)=><div key={i} className="h-7 rounded bg-gray-100 dark:bg-neutral-700" />)}
-              <div onClick={onSelect} className={"absolute h-6 rounded shadow cursor-pointer transition-all text-white " + (overdue ? "bg-red-500 hover:bg-red-600" : selected ? "bg-indigo-600" : "bg-indigo-500 hover:bg-indigo-600")} style={{left:`calc(${colStart}*(100%/${totalDays}) + ${colStart*4}px)`, width:`calc(${colSpan}*(100%/${totalDays}) + ${(colSpan-1)*4}px)`, top:"4px"}}>
-                <div className="h-full w-full flex items-center px-2 text-[11px]">{task.progress}%</div>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      function DetailPanel({task, onUpdate, onShift, onAddMsg, onInvoice}){
-        const [msg, setMsg] = useState("");
-        if(!task) return <div className="text-sm opacity-70">左のバーを選択すると詳細が表示されます。</div>;
-        return (
-          <div>
-            <div className="text-sm opacity-70 mb-1">タスク詳細</div>
-            <div className="text-lg font-bold">{task.title}</div>
-            <div className="opacity-70">{task.client} ・ {task.project}</div>
-
-            <div className="mt-3 space-y-3 text-sm">
-              <div>
-                <div className="opacity-70">期間</div>
-                <div>{task.start} → {task.end}</div>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <button className="px-2 py-1 border rounded" onClick={()=>onShift(task.id,-1)}>◀ 1日前</button>
-                  <button className="px-2 py-1 border rounded" onClick={()=>onShift(task.id,1)}>1日後 ▶</button>
-                </div>
-              </div>
-
-              <div>
-                <div className="opacity-70">進捗</div>
-                <input type="range" min={0} max={100} value={task.progress} onChange={e=>onUpdate(task.id,{progress:Number(e.target.value)})}/>
-                <span className="ml-2">{task.progress}%</span>
-              </div>
-
-              <div>
-                <div className="opacity-70">優先度</div>
-                <select className="border rounded px-2 py-1 bg-white dark:bg-neutral-800" value={task.priority} onChange={e=>onUpdate(task.id,{priority:e.target.value})}>
-                  <option>High</option><option>Medium</option><option>Low</option>
-                </select>
-              </div>
-
-              <div>
-                <div className="opacity-70">ステータス</div>
-                <select className="border rounded px-2 py-1 bg-white dark:bg-neutral-800" value={task.status} onChange={e=>onUpdate(task.id,{status:e.target.value})}>
-                  <option>Planned</option><option>In Progress</option><option>Blocked</option><option>Done</option>
-                </select>
-              </div>
-
-              <div>
-                <div className="opacity-70">依頼メモ</div>
-                <ul className="space-y-1 mb-2">
-                  {(task.messages||[]).map((m,i)=><li key={i} className="text-[13px]">• {m}</li>)}
-                  {(task.messages||[]).length===0 && <li className="opacity-60">メモなし</li>}
-                </ul>
-                <div className="flex gap-2">
-                  <input className="flex-1 border rounded px-2 py-1 bg-white dark:bg-neutral-800" placeholder="例：修正点／依頼事項" value={msg} onChange={e=>setMsg(e.target.value)} />
-                  <button className="px-3 py-1 rounded bg-indigo-600 text-white" onClick={()=>{onAddMsg(task.id, msg); setMsg("");}}>追加</button>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <button className="px-3 py-2 rounded bg-indigo-600 text-white" onClick={()=>alert("リマインダー（デモ）を設定しました")}>リマインダー</button>
-                <button className="px-3 py-2 rounded border" onClick={()=>onInvoice(task)}>請求書を作成</button>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      const root = ReactDOM.createRoot(document.getElementById("root"));
-      root.render(<App/>);
+      // ===== Init =====
+      load(); bind(); render();
     </script>
   </body>
 </html>
