@@ -39,6 +39,11 @@
       .space{height:8px}
       /* v1.0.2 layout */
 　　　.main-wrap{ margin-top: 8px; }   /* stickyヘッダーと本文の干渉を確実に回避 */
+      /* v1.0.3 hotfix — disable sticky header & clear overlaps */
+      header{position:relative !important; top:auto !important; z-index:1 !important; background:var(--card) !important; border-bottom:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,.04)}
+      header .bar{flex-wrap:wrap}
+      .main-wrap{margin-top:0 !important}
+      .gantt-header{position:relative; z-index:0}
     </style>
   </head>
   <body>
