@@ -37,6 +37,8 @@
       .hidden{display:none}
       .flex{display:flex;gap:8px;align-items:center}
       .space{height:8px}
+      /* v1.0.2 layout */
+　　　.main-wrap{ margin-top: 8px; }   /* stickyヘッダーと本文の干渉を確実に回避 */
     </style>
   </head>
   <body>
@@ -64,7 +66,7 @@
       </div>
     </header>
 
-    <div class="container" style="padding:16px 0">
+    <div class=\"container main-wrap\" style=\"padding:16px 0\">
       <div class="grid cols">
         <!-- Sidebar -->
         <aside class="card">
@@ -337,3 +339,4 @@
     </script>
   </body>
 </html>
+
