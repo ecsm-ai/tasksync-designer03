@@ -44,6 +44,9 @@
       header .bar{flex-wrap:wrap}
       .main-wrap{margin-top:0 !important}
       .gantt-header{position:relative; z-index:0}
+      /* v1.0.4 spacing fix: ヘッダーと本文の重なりを常に回避 */
+      header{ position:relative !important; background:var(--card) !important; z-index: 1 !important; }
+      .main-wrap{ margin-top: 0; } /* JSで実測して上書きするので0でOK */
     </style>
   </head>
   <body>
@@ -341,6 +344,20 @@
 
       // ===== Init =====
       load(); bind(); render();
+    </script>
+    <script>
+      // ヘッダー高さを実測して本文に余白を付与（リサイズにも追従）
+      (function () {
+        function applyOffset() {
+          var h = document.querySelector('header');
+          var m = document.querySelector('.main-wrap');
+          if (!h || !m) return;
+          m.style.marginTop = (h.offsetHeight + 8) + 'px';
+        }
+        applyOffset();
+        window.addEventListener('load', applyOffset);
+        window.addEventListener('resize', applyOffset);
+      })();
     </script>
   </body>
 </html>
