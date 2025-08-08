@@ -229,7 +229,8 @@
 
       // ===== Notifications (Tonight 19:00) =====
       function scheduleTonight(){
-        const now=new Date(); const t=new Date(); t.setHours(19,0,0,0); if(t<now) t.setDate(t.getDate()+1); const delay=t-now; const ask=()=>{ Notification.requestPermission().then(p=>{ if(p==='granted'){ setTimeout(()=> new Notification('明日の準備', { body:'未完了タスクを整理しましょう。TaskSync Designer を開いてください。'}), delay); alert('今夜19時に通知します（ブラウザが開いている場合）。\n確実な通知は「Googleカレンダー」ボタンをご利用ください。'); } else { alert('通知が許可されていません。右の「Googleカレンダー」をご利用ください。'); } }); };
+        const now=new Date(); const t=new Date(); t.setHours(19,0,0,0); if(t<now) t.setDate(t.getDate()+1); const delay=t-now; const ask=()=>{ Notification.requestPermission().then(p=>{ if(p==='granted'){ setTimeout(()=> new Notification('明日の準備', { body:'未完了タスクを整理しましょう。TaskSync Designer を開いてください。'}), delay); alert('今夜19時に通知します（ブラウザが開いている場合）。
+確実な通知は「Googleカレンダー」ボタンをご利用ください。'); } else { alert('通知が許可されていません。右の「Googleカレンダー」をご利用ください。'); } }); };
         if(!('Notification' in window)) { alert('このブラウザは通知に対応していません。Googleカレンダーを使ってください。'); return; }
         if(Notification.permission==='granted'){ setTimeout(()=> new Notification('明日の準備', { body:'未完了タスクを整理しましょう。'}), delay); alert('今夜19時に通知します（ブラウザが開いている場合）。'); }
         else if(Notification.permission==='denied'){ alert('通知が拒否されています。ブラウザ設定から許可してください。'); }
