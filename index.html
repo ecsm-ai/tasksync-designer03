@@ -3,25 +3,32 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TaskSync Designer – Gantt Refresh</title>
+    <title>TaskSync Designer – PersonaFit v3</title>
     <meta name="color-scheme" content="light dark" />
     <style>
-      :root{--bg:#f7f9fc;--fg:#0f172a;--card:#fff;--muted:#64748b;--rail:#eef2f7;--railBorder:#e6ebf2;--bar:#4f46e5;--bar2:#4338ca;--border:#e6ebf2}
+      :root{--bg:#f7f9fc;--fg:#0f172a;--card:#fff;--muted:#64748b;--rail:#eef2f7;--railBorder:#e6ebf2;--bar:#4f46e5;--bar2:#4338ca;--danger:#ef4444;--border:#e6ebf2}
       .dark{--bg:#0b0f14;--fg:#e5e7eb;--card:#0f172a;--muted:#9aa7b8;--rail:#1f2937;--railBorder:#2a3443;--border:#223041}
       html,body{height:100%}
       body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-      .container{max-width:1120px;margin:0 auto;padding:16px}
-      h1{margin:0 0 12px;font-size:18px}
+      .container{max-width:1180px;margin:0 auto;padding:16px}
+      h1{margin:0 0 8px;font-size:18px}
       .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
       .btn{padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--fg);cursor:pointer}
       .btn.primary{background:var(--bar);border-color:var(--bar);color:#fff}
+      .btn.warn{background:var(--danger);border-color:var(--danger);color:#fff}
       .btn:hover{opacity:.95}
+      .chip{padding:6px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer;background:#fff}
+      .chip.active{background:var(--bar);border-color:var(--bar);color:#fff}
+      select,input,textarea{font:inherit;color:inherit;background:transparent;border:1px solid var(--border);border-radius:10px;padding:8px}
+      input[type="number"],input[type="date"],input[type="text"]{background:#fff}
       .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:10px}
-      /* header days */
+      /* calendar header */
       .days{display:grid;gap:6px;grid-auto-flow:column;grid-auto-columns:minmax(36px,1fr);align-items:end}
       .day{font-size:12px;text-align:center;color:var(--muted)}
       .dow{display:block;font-size:11px;margin-top:2px}
       /* task list */
+      .split{display:grid;grid-template-columns:1fr 330px;gap:16px}
+      @media(max-width:980px){.split{grid-template-columns:1fr}}
       .list{display:flex;flex-direction:column;gap:14px;margin-top:10px}
       .task{border:1px solid var(--border);border-radius:14px;padding:10px}
       .taskhead{display:flex;justify-content:space-between;align-items:center;font-size:14px}
@@ -31,34 +38,42 @@
       .cell{height:24px;background:var(--rail);border:1px solid var(--railBorder);border-radius:8px}
       .bar{position:absolute;height:24px;border-radius:8px;background:var(--bar);box-shadow:0 2px 4px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;white-space:nowrap;transition:transform .15s ease}
       .bar:hover{transform:translateY(-1px)}
-      .muted{color:var(--muted)}
-      .controls{margin-left:auto;display:flex;gap:6px}
-      .split{display:grid;grid-template-columns:1fr 320px;gap:16px}
-      @media(max-width:960px){.split{grid-template-columns:1fr}}
+      .bar.overdue{background:var(--danger)}
+      /* detail */
       .detail{position:sticky;top:12px}
       .field{margin-top:10px;font-size:14px}
       .lbl{display:block;color:var(--muted);margin-bottom:4px}
-      input[type="range"]{width:100%}
-      select,input,textarea{font:inherit;color:inherit;background:transparent;border:1px solid var(--border);border-radius:10px;padding:8px}
-      textarea{min-height:80px}
       .kicker{display:flex;gap:8px;align-items:center}
+      .summary{display:flex;gap:8px;flex-wrap:wrap}
+      .pill{border:1px solid var(--border);border-radius:999px;padding:4px 10px;background:#fff}
     </style>
   </head>
   <body>
     <div class="container">
       <div class="toolbar">
         <h1>TaskSync Designer</h1>
-        <button id="prev" class="btn" title="前の月">◀︎ 月</button>
-        <button id="next" class="btn" title="次の月">月 ▶︎</button>
-        <div class="controls">
+        <div class="summary" id="summary"></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;color:var(--muted)">フィルタ:</span>
+          <button class="chip" data-preset="all">すべて</button>
+          <button class="chip" data-preset="today">今日</button>
+          <button class="chip" data-preset="week">今週</button>
+          <button class="chip" data-preset="overdue">期限切れ</button>
+          <select id="clientFilter"><option value="all">全クライアント</option></select>
           <button id="theme" class="btn" title="テーマ切替">🌙/☀️</button>
+        </div>
+        <div style="width:100%; display:flex; gap:8px; align-items:center; margin-top:6px">
+          <input id="qa-title" type="text" placeholder="タスク名（例：LP第2稿）" style="flex:1" />
+          <input id="qa-client" type="text" placeholder="クライアント（例：Acme）" style="width:180px" />
+          <select id="qa-days"><option value="1">1日</option><option value="3" selected>3日</option><option value="5">5日</option><option value="10">10日</option></select>
+          <button id="qa-add" class="btn primary">追加</button>
+          <button id="prep" class="btn">明日の準備</button>
+          <button id="remindTonight" class="btn">今夜19時に通知</button>
         </div>
       </div>
 
       <!-- calendar header -->
-      <div class="card">
-        <div id="days" class="days"></div>
-      </div>
+      <div class="card"><div id="days" class="days"></div></div>
 
       <div class="split">
         <!-- left: tasks -->
@@ -67,18 +82,24 @@
         </div>
         <!-- right: detail -->
         <div>
-          <div class="card detail" id="detailCard">
+          <div class="card detail">
             <div class="muted">タスク詳細</div>
             <div class="field"><strong id="dTitle">左のバーを選択してください</strong></div>
             <div class="field"><span class="lbl">クライアント / 案件</span><div id="dMeta" class="muted">—</div></div>
             <div class="field"><span class="lbl">期間</span><div id="dRange" class="muted">—</div></div>
-            <div class="field">
-              <span class="lbl">進捗</span>
-              <div class="kicker"><input id="dProg" type="range" min="0" max="100" value="0"><span id="dProgVal" style="width:42px" class="muted">0%</span></div>
+            <div class="field"><span class="lbl">進捗</span><div class="kicker"><input id="dProg" type="range" min="0" max="100" value="0"><span id="dProgVal" style="width:42px" class="muted">0%</span></div></div>
+            <div class="field"><span class="lbl">ステータス</span>
+              <select id="dStatus"><option>Planned</option><option>In Progress</option><option>Blocked</option><option>Done</option></select>
+            </div>
+            <div class="field"><span class="lbl">依頼メモ</span>
+              <ul id="dMemoList" style="padding-left:18px;margin:6px 0"></ul>
+              <div class="kicker"><input id="dMemoInput" type="text" placeholder="例：修正点／依頼事項" style="flex:1"><button id="dMemoAdd" class="btn primary">追加</button></div>
             </div>
             <div class="field">
-              <span class="lbl">メモ</span>
-              <textarea id="dNotes" placeholder="依頼事項・修正点など"></textarea>
+              <div class="kicker">
+                <button id="dInvoice" class="btn">請求書を作成</button>
+                <a id="dGCal" class="btn" target="_blank" rel="noopener">Googleカレンダー</a>
+              </div>
             </div>
           </div>
         </div>
@@ -91,129 +112,132 @@
       const parse = s => new Date(s+"T00:00:00");
       const addDays = (d,n)=> new Date(d.getFullYear(), d.getMonth(), d.getDate()+n);
       const daysInMonth = d => new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+      const startOfWeek = d => addDays(d, -((d.getDay()+6)%7));
+      const inWeek = (s,e,today)=>{ const a=startOfWeek(today), b=addDays(a,6); return e>=a && s<=b; };
 
       // ===== State =====
-      const storeKey = 'tsd_gantt_refresh_v1';
-      let state = {
-        monthAnchor: new Date(), // 現在の月を基準
-        tasks: []
-      };
+      const storeKey = 'tsd_persona_v3';
+      const themeKey = 'tsd_theme_v3';
+      let state = { monthAnchor:new Date(), preset:'all', client:'all', selectedId:null, tasks:[] };
 
-      const seed = (()=>{
-        const a = new Date();
-        return [
-          {id:'t4', title:'LPデザイン制作', client:'Beta Studio', project:'ABC', start:fmt(new Date(a.getFullYear(), a.getMonth(), 10)), end:fmt(new Date(a.getFullYear(), a.getMonth(), 16)), progress:41, notes:''},
-          {id:'t1', title:'LPデザイン（構成案）', client:'Acme Co.', project:'ECサイト刷新', start:fmt(new Date(a.getFullYear(), a.getMonth(), 4)), end:fmt(new Date(a.getFullYear(), a.getMonth(), 9)), progress:60, notes:''},
-          {id:'t2', title:'バナー3種', client:'Beta Studio', project:'キャンペーンA/W', start:fmt(new Date(a.getFullYear(), a.getMonth(), 5)), end:fmt(new Date(a.getFullYear(), a.getMonth(), 15)), progress:46, notes:''},
-          {id:'t3', title:'ロゴ微調整', client:'Acme Co.', project:'ブランドガイド', start:fmt(new Date(a.getFullYear(), a.getMonth(), 14)), end:fmt(new Date(a.getFullYear(), a.getMonth(), 19)), progress:0, notes:''}
-        ];
-      })();
+      const seed = (()=>{ const a=new Date(); return [
+        {id:'t4', title:'LPデザイン制作', client:'Beta Studio', project:'ABC', start:fmt(new Date(a.getFullYear(), a.getMonth(), 10)), end:fmt(new Date(a.getFullYear(), a.getMonth(), 16)), progress:41, status:'In Progress', memos:[]},
+        {id:'t1', title:'LPデザイン（構成案）', client:'Acme Co.', project:'ECサイト刷新', start:fmt(new Date(a.getFullYear(), a.getMonth(), 4)), end:fmt(new Date(a.getFullYear(), a.getMonth(), 9)), progress:60, status:'In Progress', memos:['構成案はA/B検討']},
+        {id:'t2', title:'バナー3種', client:'Beta Studio', project:'キャンペーンA/W', start:fmt(new Date(a.getFullYear(), a.getMonth(), 5)), end:fmt(new Date(a.getFullYear(), a.getMonth(), 15)), progress:46, status:'Planned', memos:['サイズ:300x250/728x90/1080x1350']},
+        {id:'t3', title:'ロゴ微調整', client:'Acme Co.', project:'ブランドガイド', start:fmt(new Date(a.getFullYear(), a.getMonth(), 14)), end:fmt(new Date(a.getFullYear(), a.getMonth(), 19)), progress:0, status:'Planned', memos:[]},
+      ];})();
 
-      function load(){
-        try{ const saved = JSON.parse(localStorage.getItem(storeKey)||'{}'); if(saved && saved.tasks) state = saved; else state.tasks = seed; }
-        catch{ state.tasks = seed; }
-      }
+      function load(){ try{ const s=JSON.parse(localStorage.getItem(storeKey)||'{}'); if(s && s.tasks) state=s; else state.tasks=seed; }catch{ state.tasks=seed; }
+        const th=localStorage.getItem(themeKey); if(th==='dark') document.documentElement.classList.add('dark'); }
       function save(){ localStorage.setItem(storeKey, JSON.stringify(state)); }
 
-      // ===== Render Days Header =====
-      function renderDays(){
-        const root = document.getElementById('days');
-        root.innerHTML='';
-        const y = state.monthAnchor.getFullYear();
-        const m = state.monthAnchor.getMonth();
-        const n = daysInMonth(state.monthAnchor);
-        for(let i=1;i<=n;i++){
-          const d = new Date(y,m,i);
-          const div = document.createElement('div'); div.className='day';
-          div.textContent = `${m+1}/${i}`;
-          const dow = document.createElement('span'); dow.className='dow'; dow.textContent = '日月火水木金土'[d.getDay()];
-          div.appendChild(dow);
-          root.appendChild(div);
-        }
+      // ===== Summary =====
+      function renderSummary(){
+        const t = new Date(); const todayStr = fmt(t);
+        const dueToday = state.tasks.filter(x=> x.start<=todayStr && x.end>=todayStr && x.status!=='Done');
+        const overdue = state.tasks.filter(x=> x.end<todayStr && x.status!=='Done');
+        const inprog = state.tasks.filter(x=> x.status==='In Progress');
+        const el = document.getElementById('summary');
+        el.innerHTML = `
+          <span class="pill">今日 ${dueToday.length}</span>
+          <span class="pill">進行中 ${inprog.length}</span>
+          <span class="pill" style="color:#b91c1c;border-color:#fecaca;background:#fee2e2">期限切れ ${overdue.length}</span>`;
       }
 
-      // ===== Render Task List =====
-      let selectedId = null;
-      function clampToMonth(start, end){
-        const y = state.monthAnchor.getFullYear();
-        const m = state.monthAnchor.getMonth();
-        const first = new Date(y,m,1);
-        const last = new Date(y,m,daysInMonth(state.monthAnchor));
-        const s = start < first ? first : start;
-        const e = end > last ? last : end;
-        // convert to 0-based index and span
-        const index = Math.max(0, Math.floor((s - first)/86400000));
-        const span = Math.max(1, Math.floor((e - first)/86400000) - index + 1);
-        return { index, span, total: daysInMonth(state.monthAnchor) };
+      // ===== Calendar Header =====
+      function renderDays(){
+        const root = document.getElementById('days'); root.innerHTML='';
+        const y = state.monthAnchor.getFullYear(); const m = state.monthAnchor.getMonth(); const n = daysInMonth(state.monthAnchor);
+        for(let i=1;i<=n;i++){ const d=new Date(y,m,i); const div=document.createElement('div'); div.className='day';
+          div.textContent=`${m+1}/${i}`; const dow=document.createElement('span'); dow.className='dow'; dow.textContent='日月火水木金土'[d.getDay()]; div.appendChild(dow); root.appendChild(div); }
       }
+
+      // ===== List + Filtering =====
+      function isOverdue(t){ return t.end < fmt(new Date()) && t.status!=='Done'; }
+      function filteredTasks(){
+        const today = new Date();
+        return state.tasks.filter(t=> state.client==='all' ? true : t.client===state.client)
+          .filter(t=>{
+            const s=parse(t.start), e=parse(t.end);
+            if(state.preset==='today') return s<=today && e>=today;
+            if(state.preset==='week') return inWeek(s,e,today);
+            if(state.preset==='overdue') return isOverdue(t);
+            return true;
+          });
+      }
+
+      function clampToMonth(start,end){ const y=state.monthAnchor.getFullYear(); const m=state.monthAnchor.getMonth(); const first=new Date(y,m,1); const last=new Date(y,m,daysInMonth(state.monthAnchor)); const s=start<first?first:start; const e=end>last?last:end; const index=Math.max(0, Math.floor((s-first)/86400000)); const span=Math.max(1, Math.floor((e-first)/86400000)-index+1); return {index,span,total:daysInMonth(state.monthAnchor)}; }
 
       function renderList(){
-        const y = state.monthAnchor.getFullYear();
-        const m = state.monthAnchor.getMonth();
-        const total = daysInMonth(state.monthAnchor);
-        const list = document.getElementById('list');
-        list.innerHTML='';
-        state.tasks.forEach(t=>{
-          const task = document.createElement('div'); task.className='task';
-          const head = document.createElement('div'); head.className='taskhead';
-          const tl = document.createElement('div'); tl.className='tasktitle'; tl.textContent = t.title; head.appendChild(tl);
-          const tr = document.createElement('div'); tr.className='taskmeta'; tr.textContent = `${t.client} ・ ${t.project}`; head.appendChild(tr);
-          task.appendChild(head);
-
-          const rail = document.createElement('div'); rail.className='rail';
-          rail.style.gridTemplateColumns = `repeat(${total}, minmax(36px,1fr))`;
+        const list=document.getElementById('list'); list.innerHTML='';
+        const total=daysInMonth(state.monthAnchor);
+        const tasks=filteredTasks();
+        tasks.forEach(t=>{
+          const task=document.createElement('div'); task.className='task';
+          const head=document.createElement('div'); head.className='taskhead';
+          const tl=document.createElement('div'); tl.className='tasktitle'; tl.textContent=t.title; head.appendChild(tl);
+          const tr=document.createElement('div'); tr.className='taskmeta'; tr.textContent=`${t.client} ・ ${t.project}`; head.appendChild(tr); task.appendChild(head);
+          const rail=document.createElement('div'); rail.className='rail'; rail.style.gridTemplateColumns=`repeat(${total}, minmax(36px,1fr))`;
           for(let i=0;i<total;i++){ const c=document.createElement('div'); c.className='cell'; rail.appendChild(c); }
-
-          const {index, span} = clampToMonth(parse(t.start), parse(t.end));
-          const bar = document.createElement('div'); bar.className='bar'; bar.textContent = `${t.progress}%`;
-          bar.style.left = `calc(${index}*(100%/${total}) + ${index*6}px)`;
-          bar.style.width = `calc(${span}*(100%/${total}) + ${(span-1)*6}px)`;
-          bar.onclick = ()=>{ selectedId=t.id; renderDetail(); };
-
-          rail.appendChild(bar);
-          task.appendChild(rail);
-          list.appendChild(task);
+          const {index,span}=clampToMonth(parse(t.start), parse(t.end));
+          const bar=document.createElement('div'); bar.className='bar'+(isOverdue(t)?' overdue':''); bar.textContent=`${t.progress}%`;
+          bar.style.left=`calc(${index}*(100%/${total}) + ${index*6}px)`; bar.style.width=`calc(${span}*(100%/${total}) + ${(span-1)*6}px)`; bar.title=`${t.start} → ${t.end}`;
+          bar.onclick=()=>{ state.selectedId=t.id; renderDetail(); };
+          rail.appendChild(bar); task.appendChild(rail); list.appendChild(task);
         });
       }
 
-      // ===== Detail Panel =====
+      // ===== Detail =====
       function renderDetail(){
-        const t = state.tasks.find(x=>x.id===selectedId);
-        const title = document.getElementById('dTitle');
-        const meta = document.getElementById('dMeta');
-        const range = document.getElementById('dRange');
-        const prog = document.getElementById('dProg');
-        const progVal = document.getElementById('dProgVal');
-        const notes = document.getElementById('dNotes');
-        if(!t){ title.textContent='左のバーを選択してください'; meta.textContent='—'; range.textContent='—'; prog.value=0; progVal.textContent='0%'; notes.value=''; return; }
-        title.textContent = t.title;
-        meta.textContent = `${t.client} ・ ${t.project}`;
-        range.textContent = `${t.start} → ${t.end}`;
-        prog.value = t.progress; progVal.textContent = t.progress + '%';
-        notes.value = t.notes || '';
-        prog.oninput = (e)=>{ t.progress = Number(e.target.value); progVal.textContent=t.progress+'%'; save(); renderList(); };
-        notes.onchange = ()=>{ t.notes = notes.value; save(); };
+        const t = state.tasks.find(x=>x.id===state.selectedId);
+        const title=document.getElementById('dTitle'); const meta=document.getElementById('dMeta'); const range=document.getElementById('dRange'); const prog=document.getElementById('dProg'); const progVal=document.getElementById('dProgVal'); const status=document.getElementById('dStatus'); const ul=document.getElementById('dMemoList'); const input=document.getElementById('dMemoInput'); const gcal=document.getElementById('dGCal'); const inv=document.getElementById('dInvoice');
+        if(!t){ title.textContent='左のバーを選択してください'; meta.textContent='—'; range.textContent='—'; prog.value=0; progVal.textContent='0%'; ul.innerHTML=''; gcal.removeAttribute('href'); inv.onclick=null; return; }
+        title.textContent=t.title; meta.textContent=`${t.client} ・ ${t.project}`; range.textContent=`${t.start} → ${t.end}`; prog.value=t.progress; progVal.textContent=t.progress+'%'; status.value=t.status;
+        prog.oninput=(e)=>{ t.progress=Number(e.target.value); progVal.textContent=t.progress+'%'; save(); renderList(); };
+        status.onchange=(e)=>{ t.status=e.target.value; save(); renderList(); };
+        // memos
+        ul.innerHTML=''; (t.memos||[]).forEach(m=>{ const li=document.createElement('li'); li.textContent='• '+m; li.style.fontSize='13px'; ul.appendChild(li); });
+        document.getElementById('dMemoAdd').onclick=()=>{ const v=input.value.trim(); if(!v) return; t.memos=[...(t.memos||[]), v]; input.value=''; save(); renderDetail(); };
+        // invoice
+        inv.onclick=()=> openInvoice(t);
+        // google calendar link
+        const gStart=t.start.replace(/-/g,''); const gEnd=fmt(addDays(parse(t.end),1)).replace(/-/g,''); const text=encodeURIComponent(`${t.title} / ${t.client}`); const details=encodeURIComponent(t.project); const gUrl=`https://www.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${gStart}/${gEnd}&details=${details}`; gcal.href=gUrl;
       }
 
-      // ===== Theme & Month nav =====
-      function bindUI(){
-        document.getElementById('theme').onclick = ()=>{
-          const dark = document.documentElement.classList.toggle('dark');
-          localStorage.setItem('tsd_theme', dark? 'dark':'light');
-        };
-        const savedTheme = localStorage.getItem('tsd_theme');
-        if(savedTheme==='dark') document.documentElement.classList.add('dark');
+      function openInvoice(task){ const w=window.open('','_blank'); if(!w) return; const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8"/><title>Invoice - ${task.title}</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;padding:24px} h1{margin:0 0 8px} table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:8px} .r{text-align:right}</style></head><body>
+<h1>請求書</h1>
+<p><b>クライアント:</b> ${task.client}<br/><b>案件:</b> ${task.project}<br/><b>タスク:</b> ${task.title}<br/><b>期間:</b> ${task.start} 〜 ${task.end}</p>
+<table><thead><tr><th>内容</th><th class="r">数量</th><th class="r">単価</th><th class="r">金額</th></tr></thead><tbody><tr><td>${task.title}</td><td class="r">1</td><td class="r">¥50,000</td><td class="r">¥50,000</td></tr></tbody><tfoot><tr><th colspan="3" class="r">小計</th><th class="r">¥50,000</th></tr></tfoot></table>
+<p>※ デモ用。実運用では単価・税率・振込先など編集可能にします。</p>
+<script>window.onload=()=>window.print()<\/script></body></html>`; w.document.write(html); w.document.close(); }
 
-        document.getElementById('prev').onclick = ()=>{ state.monthAnchor = new Date(state.monthAnchor.getFullYear(), state.monthAnchor.getMonth()-1, 1); save(); renderDays(); renderList(); };
-        document.getElementById('next').onclick = ()=>{ state.monthAnchor = new Date(state.monthAnchor.getFullYear(), state.monthAnchor.getMonth()+1, 1); save(); renderDays(); renderList(); };
+      // ===== Header UI =====
+      function bindHeader(){
+        document.getElementById('theme').onclick=()=>{ const d=document.documentElement.classList.toggle('dark'); localStorage.setItem(themeKey, d?'dark':'light'); };
+        document.getElementById('qa-add').onclick=()=>{ const title=document.getElementById('qa-title').value.trim(); const client=document.getElementById('qa-client').value.trim(); const days=Number(document.getElementById('qa-days').value||'3'); if(!title||!client) return; const s=fmt(new Date()); const e=fmt(addDays(new Date(), days)); state.tasks=[{id:'t'+(state.tasks.length+1), title, client, project:'単発', start:s, end:e, progress:0, status:'Planned', memos:[]}, ...state.tasks]; save(); renderSummary(); renderList(); document.getElementById('qa-title').value=''; document.getElementById('qa-client').value=''; };
+        document.getElementById('prep').onclick=()=>{ const todayStr=fmt(new Date()); state.tasks=state.tasks.map(t=>{ if(t.status==='Done') return t; if(t.end<=todayStr){ return {...t, start:fmt(addDays(parse(t.start),1)), end:fmt(addDays(parse(t.end),1)), status: t.status==='Blocked'?'In Progress':t.status}; } return t; }); save(); renderList(); alert('未完了タスクを明日に繰り越しました。'); };
+        document.getElementById('remindTonight').onclick=()=>{ scheduleTonight(); };
+        // client filter
+        const cf=document.getElementById('clientFilter'); const clients=[...new Set(state.tasks.map(t=>t.client))]; cf.innerHTML='<option value="all">全クライアント</option>'+clients.map(c=>`<option value="${c}">${c}</option>`).join(''); cf.value=state.client; cf.onchange=e=>{ state.client=e.target.value; save(); renderList(); };
+        // presets
+        document.querySelectorAll('[data-preset]').forEach(b=>{ b.classList.toggle('active', b.getAttribute('data-preset')===state.preset); b.onclick=()=>{ state.preset=b.getAttribute('data-preset'); save(); document.querySelectorAll('[data-preset]').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderList(); renderSummary(); }; });
+      }
+
+      // ===== Month Nav (toolbar was simplified; header is just month view so nav omitted) =====
+      function renderAll(){ renderSummary(); renderDays(); bindHeader(); renderList(); renderDetail(); }
+
+      // ===== Notifications (Tonight 19:00) =====
+      function scheduleTonight(){
+        const now=new Date(); const t=new Date(); t.setHours(19,0,0,0); if(t<now) t.setDate(t.getDate()+1); const delay=t-now; const ask=()=>{ Notification.requestPermission().then(p=>{ if(p==='granted'){ setTimeout(()=> new Notification('明日の準備', { body:'未完了タスクを整理しましょう。TaskSync Designer を開いてください。'}), delay); alert('今夜19時に通知します（ブラウザが開いている場合）。\n確実な通知は「Googleカレンダー」ボタンをご利用ください。'); } else { alert('通知が許可されていません。右の「Googleカレンダー」をご利用ください。'); } }); };
+        if(!('Notification' in window)) { alert('このブラウザは通知に対応していません。Googleカレンダーを使ってください。'); return; }
+        if(Notification.permission==='granted'){ setTimeout(()=> new Notification('明日の準備', { body:'未完了タスクを整理しましょう。'}), delay); alert('今夜19時に通知します（ブラウザが開いている場合）。'); }
+        else if(Notification.permission==='denied'){ alert('通知が拒否されています。ブラウザ設定から許可してください。'); }
+        else ask();
       }
 
       // ===== Init =====
-      load();
-      bindUI();
-      renderDays();
-      renderList();
-      renderDetail();
+      load(); renderAll();
     </script>
   </body>
 </html>
